@@ -2,8 +2,8 @@ package com.example.parkingsystem
 
 class FirebaseConst {
     companion object{
-        const val CAR_COLLECTION = "cars"
         const val ERROR_COLLECTION = "errors"
+        const val CAR_COLLECTION = "cars"
         const val USER_COLLECTION = "users"
         const val PARKING_COLLECTION = "parkings"
         const val PARKING_SPACE_COLLECTION = "spaces"

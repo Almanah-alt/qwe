@@ -1,8 +1,7 @@
 package com.example.parkingsystem.fragments
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
-import android.content.DialogInterface
+import android.app.Dialog
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
@@ -10,17 +9,21 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import com.example.parkingsystem.FirebaseConst
 import com.example.parkingsystem.R
+import com.example.parkingsystem.binder.ParkingDetailBinder
+import com.example.parkingsystem.binder.ParkingSpaceDetailBinder
+import com.example.parkingsystem.entity.Car
+import com.example.parkingsystem.entity.Parking
 import com.example.parkingsystem.entity.ParkingSpace
 import com.example.parkingsystem.entity.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.android.synthetic.main.fragment_home.*
 import kotlinx.android.synthetic.main.fragment_home.view.*
 import kotlin.time.ExperimentalTime
 
@@ -28,13 +31,14 @@ import kotlin.time.ExperimentalTime
 /**
  * A simple [Fragment] subclass.
  */
-class HomeFragment : Fragment() {
+class HomeFragment : Fragment(){
     private val handler = Handler()
     private var millisInFuture: Long = 0
     private lateinit var parkingName: TextView
     private lateinit var carSelec: TextView
     private lateinit var spaceSelec:TextView
     private lateinit var counterText:TextView
+    var chosenParkingSpace: String? = null
     private val db by lazy{ FirebaseFirestore.getInstance()}
     private val auth by lazy{ FirebaseAuth.getInstance()}
     @ExperimentalTime
@@ -49,16 +53,18 @@ class HomeFragment : Fragment() {
         view.cancel_take_btn.setOnClickListener {
             endReserve(auth.currentUser!!.uid)
         }
+        chosenParkingSpace = arguments?.getString(ParkingFragment.SPACE_OBJ)
+
         return view
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        millisInFuture = 100000
+        millisInFuture = 10000
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        checkUser(auth.currentUser!!.uid)
+        checkUser(auth.currentUser!!.uid, view)
         parkingName = view.findViewById(R.id.parking_name)
         spaceSelec = view.findViewById(R.id.place_section)
         carSelec = view.findViewById(R.id.car_no_sel)
@@ -67,10 +73,10 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        checkUser(auth.currentUser!!.uid)
+        view?.let { checkUser(auth.currentUser!!.uid, it) }
     }
 
-    private fun checkUser(uid: String){
+    private fun checkUser(uid: String, view: View){
         db.collection(FirebaseConst.USER_COLLECTION)
             .document(uid)
             .addSnapshotListener{ snapshot, e ->
@@ -81,7 +87,7 @@ class HomeFragment : Fragment() {
                 val user = snapshot?.toObject(User::class.java)
                 if (user != null){
                     if (user.selectedCar.carName.isNotBlank() && user.selectedCar.carNo.isNotBlank() && user.userSpace.spaceSection.isNotBlank()){
-                        timerReserve()
+                        timerReserve(view)
                         userParkingSpace()
                     }
                 }
@@ -89,31 +95,31 @@ class HomeFragment : Fragment() {
 
     }
 
-   private fun timerReserve(){
+   private fun timerReserve(view: View){
         val timer = object: CountDownTimer(millisInFuture, 1000) {
             @SuppressLint("SetTextI18n")
             override fun onTick(millisUntilFinished: Long) {
                 val minutes = millisUntilFinished / (1000 * 60) % 60
                 val seconds = (millisUntilFinished / 1000) % 60
-                counterText.text = "${minutes}:${seconds}"
+                if (seconds < 10) counterText.text = "${minutes}:0${seconds}"
+                else counterText.text = "${minutes}:${seconds}"
                 millisInFuture = millisUntilFinished
                 }
 
             override fun onFinish() {
-                if (activity != null){
-                    val alert: AlertDialog.Builder = AlertDialog.Builder(activity)
-                    alert.setTitle("Your reservation time is out!")
-                    // alert.setMessage("Message");
-
-                    // alert.setMessage("Message");
-                    alert.setPositiveButton("Ok",
-                        DialogInterface.OnClickListener { dialog, whichButton ->
-                            endReserve(auth.currentUser!!.uid)
-                        })
-
-                    alert.show()
+                    val alert = activity?.let { Dialog(it) }
+                    alert?.setContentView(R.layout.alert_window)
+                    val closeBtn =
+                        alert?.findViewById<Button>(R.id.close_btn)
+                    val windowText =
+                        alert?.findViewById<TextView>(R.id.notification_id)
+                    windowText?.text = "Время вышло!"
+                    alert?.show()
+                    closeBtn?.setOnClickListener {
+                        alert.dismiss()
+                        endReserve(auth.currentUser!!.uid)
+                    }
                 }
-            }
         }
         timer.start()
     }
@@ -146,23 +152,45 @@ class HomeFragment : Fragment() {
                     }
 
                     val user = snapshot?.toObject(User::class.java)!!
-                    updateParkingSpace(user.userSpace)
+                    Log.d("taaaaaaaaaaag", user.userSpace.toString())
                     updateUser(user)
+                        updateParkingSpace(user.userSpace)
 
 
         }
     }
     private fun updateParkingSpace(space: ParkingSpace){
-        val spaceCol = db.collection(FirebaseConst.PARKING_SPACE_COLLECTION)
-            .document(space.parkingSpaceId)
-
-        spaceCol.update("free", true)
-            .addOnSuccessListener{
-                Log.d("uraaaaa", "updated")
-            }
-            .addOnFailureListener {
-                Log.d("neeeet",it.localizedMessage)
-            }
+//        val spaceCol = db.collection(FirebaseConst.PARKING_SPACE_COLLECTION)
+//            .document(space.parkingSpaceId + space.parkingSpaceId)
+//
+//
+//        val path = db.collection(FirebaseConst.PARKING_SPACE_COLLECTION)
+//            .document(space.parkingSpaceId + space.parkingSpaceId)
+//
+//            path.update(mapOf(
+//                "parkingId" to space.parkingId ,
+//                "free" to true ,
+//                "parkingSpaceId" to space.parkingSpaceId,
+//                "parkingNo" to space.parkingNo ,
+//                "parkingName" to space.parkingName ,
+//                "spaceSection" to space.spaceSection
+//            ))
+//            .addOnSuccessListener {
+//                Log.d("taaag", "odobreno")
+//                Log.d("taaaaaaaaa", path.path )
+////                handler.postDelayed(
+////                    {
+////                        val parkingFragment = ParkingFragment()
+////                        activity?.supportFragmentManager
+////                            ?.beginTransaction()?.replace(R.id.frame_layout, parkingFragment)
+////                            ?.addToBackStack(null)
+////                            ?.commit()
+////                    }
+////                    , 3000)
+//            }
+//            .addOnFailureListener {
+//                Log.d("taaag", it.localizedMessage)
+//            }
     }
     private fun updateUser(user: User){
         db.collection(FirebaseConst.USER_COLLECTION)
@@ -186,4 +214,5 @@ class HomeFragment : Fragment() {
                 Log.d("taaag", it.localizedMessage)
             }
     }
+
 }

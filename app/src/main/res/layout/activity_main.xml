@@ -15,7 +15,8 @@
         android:layout_width="wrap_content"
         android:layout_height="154dp"
         android:layout_gravity="center"
-        android:src="@drawable/logo"/>
+        android:src="@drawable/logo"
+        android:contentDescription="@string/todo" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -32,8 +33,20 @@
                 android:id="@+id/login_email"
                 android:layout_width="match_parent"
                 android:drawablePadding="10dp"
+                android:inputType="phone"
+                android:imeOptions="actionNext"
                 android:layout_height="wrap_content"
                 android:hint="@string/enter_phone_number" />
+<!--            <br.com.sapereaude.maskedEditText.MaskedEditText-->
+<!--                android:drawableStart="@drawable/ic_action_phone"-->
+<!--                android:id="@+id/login_email"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:drawablePadding="10dp"-->
+<!--                android:inputType="phone"-->
+<!--                android:typeface="monospace"-->
+<!--                app:mask="+7(###) ### ## ##"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                />-->
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -48,7 +61,8 @@
                 android:layout_height="wrap_content"
                 android:drawablePadding="10dp"
                 android:hint="@string/enter_password"
-                android:inputType="textPassword"/>
+                android:inputType="textPassword"
+                android:imeOptions="actionNext"/>
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -79,7 +93,7 @@
             android:layout_height="match_parent"
             android:text="@string/link_sign_up"
             android:gravity="bottom|center"
-            android:textColor="#0ECA00" />
+            android:textColor="#16c79a" />
     </LinearLayout>
 
 </LinearLayout>
